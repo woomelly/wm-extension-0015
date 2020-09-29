@@ -1,7 +1,7 @@
 <?php
 /*
  * Plugin Name: Woomelly Extension 015 Add ons 
- * Version: 1.0.1
+ * Version: 1.0.0
  * Plugin URI: https://woomelly.com
  * Description: Extension that allows replicating only one of the publications with the same name taking into account the type of publication.
  * Author: Team MakePlugins
@@ -17,34 +17,41 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
-if ( ! function_exists( 'wm_before_sync_meli_to_woo_015' ) ) {
-	add_action( 'wmfilter_before_sync_meli_to_woo', 'wm_before_sync_meli_to_woo_015', 10, 3 );
-	function wm_before_sync_meli_to_woo_015( $status, $data_item, $wc_product_exist ) {
+//$wc_product_exist->set_catalog_visibility('hidden');
+//$wc_product_exist->save();
+
+if ( ! function_exists( 'wm_filter_validate_sync_add_product_ext_015' ) ) {
+	add_action( 'wm_filter_validate_sync_add_product', 'wm_filter_validate_sync_add_product_ext_015', 10, 3 );
+	function wm_filter_validate_sync_add_product_ext_015( $status, $data_item ) {
 		$wmothers = false;
-		$wmothers = wm_get_product_by_name_015( $wc_product_exist->get_name() );
-		if ( $wmothers == true && $data_item->listing_type_id == "gold_pro" ) {
-			//$wc_product_exist->set_catalog_visibility('hidden');
-			//$wc_product_exist->save();
-			wp_trash_post( $wc_product_exist->get_id() );
+		$wmothers = wm_get_product_by_name_ext_015( $data_item->title );
+		if ( $wmothers == true ) {
+			if ( $data_item->listing_type_id == "gold_pro" ) {
+				return false;
+			}
 		}
 		return true;
 	}
 }
 
-if ( ! function_exists( 'action_woomelly_import_product_to_meli_woo_015' ) ) {
-	add_action( 'action_woomelly_import_product_to_meli', 'action_woomelly_import_product_to_meli_woo_015', 10, 3 );
-	function action_woomelly_import_product_to_meli_woo_015( $wm_product, $data_item, $wc_product_exist ) {
-		$wmothers = wm_get_product_by_name_015( $wc_product_exist->get_name() );
-		if ( $wmothers == true && $data_item->listing_type_id == "gold_pro" ) {
-			//$wc_product_exist->set_catalog_visibility('hidden');
-			//$wc_product_exist->save();
-			wp_trash_post( $wc_product_exist->get_id() );
+if ( ! function_exists( 'wmfilter_before_sync_meli_to_woo_ext_015' ) ) {
+	add_action( 'wmfilter_before_sync_meli_to_woo', 'wmfilter_before_sync_meli_to_woo_ext_015', 10, 3 );
+	function wmfilter_before_sync_meli_to_woo_ext_015( $status, $data_item, $wc_product_exist ) {
+		$wmothers = false;
+		$wmothers = wm_get_product_by_name_ext_015( $data_item->title );
+		if ( $wmothers == true ) {
+			if ( $data_item->listing_type_id == "gold_pro" ) {
+				wp_trash_post( $wc_product_exist->get_id() );
+			} else {
+				wm_get_product_by_name_ext_015( $data_item->title, true, $wc_product_exist->get_id() );
+			}
 		}
+		return true;
 	}
 }
 
-if ( ! function_exists( 'wm_get_product_by_name_015' ) ) {
-	function wm_get_product_by_name_015( $name ) {
+if ( ! function_exists( 'wm_get_product_by_name_ext_015' ) ) {
+	function wm_get_product_by_name_ext_015( $name, $trash = false, $product_id = 0 ) {
 		global $wpdb;
 		$same_product = false;
 		$all_product_query = $wpdb->get_results( "SELECT ID, post_title FROM {$wpdb->posts} WHERE post_type='product' AND (post_status='publish' OR post_status='private' OR post_status='pending');", OBJECT );
@@ -54,11 +61,18 @@ if ( ! function_exists( 'wm_get_product_by_name_015' ) ) {
 				$a = sanitize_title($value->post_title);
 				if ( strcmp($a, $b) == 0 ) {
 					$same_product = true;
-					break;
+					if ( $trash == true ) {
+						if ( $product_id != $value->ID ) {
+							wp_trash_post( $value->ID );
+						}
+					} else {
+						break;
+					}
 				}
 			}
 		}
 		return	$same_product;
 	}
-} //End wm_get_product_by_name_015()
+}
+
 ?>
